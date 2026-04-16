@@ -13,3 +13,6 @@ ios/MetaBot/.swiftpm/
 ios/MetaBot/Pods/
 ios/MetaBot/MetaBot.xcworkspace/xcuserdata/
 ios/AuthKey*.p8
+.env.backup
+.env.example
+backups/
