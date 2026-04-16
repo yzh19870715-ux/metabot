@@ -176,8 +176,9 @@ export class ClaudeExecutor {
 
   private buildQueryOptions(cwd: string, sessionId: string | undefined, abortController: AbortController, outputsDir?: string, apiContext?: ApiContext): Record<string, unknown> {
     const queryOptions: Record<string, unknown> = {
-      permissionMode: 'bypassPermissions' as const,
-      allowDangerouslySkipPermissions: true,
+      permissionMode: 'default' as const,
+      allowDangerouslySkipPermissions: false,
+      allowedTools: ['WebFetch', 'mcp__MiniMax__web_search', 'WebSearch', 'Bash', 'Read', 'Edit', 'Write', 'MultiEdit', 'Grep', 'Glob', 'NotebookRead', 'NotebookEdit', 'Agent', 'Task', 'TodoWrite'],
       cwd,
       abortController,
       includePartialMessages: true,
@@ -197,6 +198,11 @@ export class ClaudeExecutor {
     if (outputsDir) {
       appendSections.push(`## Output Files\nWhen producing output files for the user (images, PDFs, documents, archives, code files, etc.), copy them to: ${outputsDir}\nUse \`cp\` via the Bash tool. The bridge will automatically send files placed there to the user.`);
     }
+
+    // Guide Claude to prefer MiniMax web search for better performance
+    appendSections.push(
+      `## Web Search Preference\nWhen you need to search the web, prefer using the \`mcp__MiniMax__web_search\` tool instead of \`WebSearch\`. The MiniMax search tool provides better performance and is optimized for this environment. Use \`WebSearch\` only as a fallback if \`mcp__MiniMax__web_search\` is unavailable.`
+    );
 
     if (apiContext) {
       // botName and chatId are per-session — inject into system prompt to avoid

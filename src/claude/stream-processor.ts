@@ -4,6 +4,28 @@ import type { CardState, ToolCall, PendingQuestion } from '../feishu/card-builde
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.tiff']);
 
 /**
+ * Known third-party provider context windows (SDK returns wrong values for non-Anthropic APIs).
+ * Map of ANTHROPIC_BASE_URL prefix -> correct context window (in tokens).
+ */
+const THIRDPARTY_CONTEXT_WINDOWS: Record<string, number> = {
+  'https://api.minimaxi.com': 205_000,
+  'https://api.moonshot.ai': 128_000,
+  'https://api.deepseek.com': 8_192,
+  'https://api.z.ai': 128_000,
+};
+
+/**
+ * Known third-party provider display names.
+ * Map of ANTHROPIC_BASE_URL prefix -> display name.
+ */
+const THIRDPARTY_MODEL_NAMES: Record<string, string> = {
+  'https://api.minimaxi.com': 'MiniMax-M2.7-highspeed',
+  'https://api.moonshot.ai': 'moonshot-v1-8k',
+  'https://api.deepseek.com': 'deepseek-chat',
+  'https://api.z.ai': 'glm-4',
+};
+
+/**
  * Tools handled by the SDK in bypassPermissions mode.
  * The SDK auto-responds to these; we only detect them for side effects
  * (e.g. sending plan content to the user) — we must NOT call sendAnswer
@@ -165,7 +187,18 @@ export class StreamProcessor {
         );
         const mu = message.modelUsage[primaryModel];
         this._model = primaryModel;
-        this._contextWindow = mu.contextWindow;
+        // Override context window and model name for known third-party providers (SDK returns wrong values)
+        const baseUrl = process.env.ANTHROPIC_BASE_URL || '';
+        const correctWindow = Object.entries(THIRDPARTY_CONTEXT_WINDOWS).find(([prefix]) =>
+          baseUrl.startsWith(prefix)
+        )?.[1];
+        const correctModelName = Object.entries(THIRDPARTY_MODEL_NAMES).find(([prefix]) =>
+          baseUrl.startsWith(prefix)
+        )?.[1];
+        if (correctModelName) {
+          this._model = correctModelName;
+        }
+        this._contextWindow = correctWindow ?? mu.contextWindow;
         // Use last API call's tokens from stream events (accurate context window occupation)
         // Falls back to cumulative modelUsage input+output if stream events weren't captured
         if (this._lastInputTokens != null) {
