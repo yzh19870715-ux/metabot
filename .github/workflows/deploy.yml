@@ -1,0 +1,49 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build
+        run: npm run build
+        
+      - name: Run tests
+        run: npm test
+        
+      - name: Deploy to Server
+        run: |
+          echo "部署脚本将在这里执行"
+          # rsync -avz --delete dist/ user@server:/path/to/metabot/
+          
+  backup:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: deploy
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Commit backup
+        run: |
+          git add -A
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git commit -m "ci: auto-backup $(date +%Y-%m-%d)" || exit 0
+          git push
