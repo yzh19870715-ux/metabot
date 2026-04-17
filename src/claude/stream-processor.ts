@@ -223,17 +223,26 @@ export class StreamProcessor {
     const isError = message.subtype !== 'success';
     // SDK sometimes wraps API errors as "success" with the error text as result
     const isApiError = !isError && isApiErrorResult(resultText);
+    // Context overflow is signaled via terminal_reason even when subtype is 'success'
+    const isContextOverflow = message.terminal_reason === 'prompt_too_long';
+
+    let errorMessage: string | undefined;
+    if (isContextOverflow) {
+      errorMessage = 'Context window exceeded. Conversation too long — please start a new session.';
+    } else if (isError) {
+      errorMessage = message.errors?.join('; ') || `Ended with: ${message.subtype}`;
+    } else if (isApiError) {
+      errorMessage = resultText;
+    }
 
     return {
-      status: (isError || isApiError) ? 'error' : 'complete',
+      status: (isError || isApiError || isContextOverflow) ? 'error' : 'complete',
       userPrompt: this.userPrompt,
       responseText: isApiError ? '' : resultText,
       toolCalls: [...this.toolCalls],
       costUsd: this.costUsd,
       durationMs: this.durationMs,
-      errorMessage: isError
-        ? (message.errors?.join('; ') || `Ended with: ${message.subtype}`)
-        : isApiError ? resultText : undefined,
+      errorMessage,
       model: this._model,
       totalTokens: this._totalTokens,
       contextWindow: this._contextWindow,

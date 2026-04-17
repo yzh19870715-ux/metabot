@@ -160,6 +160,8 @@ export type SDKMessage = {
     };
   };
   parent_tool_use_id?: string | null;
+  /** Terminal reason from SDK (e.g. 'prompt_too_long' when context overflows) */
+  terminal_reason?: string;
 };
 
 export interface ExecutionHandle {
@@ -252,8 +254,14 @@ export class ClaudeExecutor {
       queryOptions.resume = sessionId;
     }
 
-    // Enable 1M context window for Opus 4.6 and Sonnet 4.6
-    queryOptions.betas = ['context-1m-2025-08-07'];
+    // Only enable 1M context window beta for official Anthropic API.
+    // Third-party proxies (MiniMax, moonshot, DeepSeek, etc.) have smaller
+    // context windows and do not support this beta.
+    const baseUrl = process.env.ANTHROPIC_BASE_URL || '';
+    const isOfficialAnthropic = !baseUrl || baseUrl.includes('api.anthropic.com');
+    if (isOfficialAnthropic) {
+      queryOptions.betas = ['context-1m-2025-08-07'];
+    }
 
     return queryOptions;
   }
